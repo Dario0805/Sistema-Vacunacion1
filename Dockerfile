@@ -8,12 +8,12 @@ RUN mvn clean package
 FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
-# Copiamos el WAR y el webapp-runner desde la etapa de construcción
+# Copiamos el WAR y el webapp-runner
 COPY --from=build /app/target/captcha.war app.war
 COPY --from=build /app/target/dependency/webapp-runner.jar webapp-runner.jar
 
-# Exponemos el puerto que usa Render
+# Exponemos el puerto
 EXPOSE 8080
 
-# Comando para arrancar la aplicación usando webapp-runner
-CMD ["java", "-jar", "webapp-runner.jar", "--port", "8080", "app.war"]
+# CAMBIO AQUÍ: Añadimos --context-path "" para que cargue en la raíz
+CMD ["java", "-jar", "webapp-runner.jar", "--port", "8080", "--context-path", "", "app.war"]
