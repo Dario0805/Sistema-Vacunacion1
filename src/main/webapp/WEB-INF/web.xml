@@ -6,6 +6,10 @@
 
     <display-name>Sistema de Gestión de Vacunación</display-name>
 
+    <welcome-file-list>
+        <welcome-file>login.jsp</welcome-file>
+    </welcome-file-list>
+
     <context-param>
         <param-name>jakarta.servlet.jsp.jstl.fmt.localizationContext</param-name>
         <param-value>messages</param-value>
@@ -141,30 +145,8 @@
         <url-pattern>/consulta</url-pattern>
     </servlet-mapping>
 
-    <welcome-file-list>
-        <welcome-file>login.jsp</welcome-file>
-    </welcome-file-list>
-
     <session-config>
         <session-timeout>30</session-timeout>
     </session-config>
 
-    <!-- TEMPORAL: comenta errores para ver el problema real de Tomcat -->
-    <!--
-    <error-page>
-        <error-code>404</error-code>
-        <location>/error.jsp</location>
-    </error-page>
-
-    <error-page>
-        <error-code>500</error-code>
-        <location>/error.jsp</location>
-    </error-page>
-
-    <error-page>
-        <exception-type>java.lang.Exception</exception-type>
-        <location>/error.jsp</location>
-    </error-page>
-    -->
-
-</web-app>
+    </web-app>
