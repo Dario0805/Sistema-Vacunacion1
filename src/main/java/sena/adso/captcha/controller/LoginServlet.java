@@ -3,10 +3,21 @@ package sena.adso.captcha.controller;
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.Properties;
-import jakarta.mail.*;
-import jakarta.mail.internet.*;
+
+import jakarta.mail.Authenticator;
+import jakarta.mail.Message;
+import jakarta.mail.MessagingException;
+import jakarta.mail.PasswordAuthentication;
+import jakarta.mail.Transport;
+import jakarta.mail.internet.InternetAddress;
+import jakarta.mail.internet.MimeMessage;
+
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.*;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+
 import sena.adso.captcha.dao.UsuarioDAO;
 import sena.adso.captcha.dto.Usuario;
 
@@ -17,129 +28,240 @@ public class LoginServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+
         HttpSession session = request.getSession();
+
         if (request.getParameter("reset") != null) {
             session.removeAttribute("otpPending");
             session.removeAttribute("otpCode");
             session.removeAttribute("tempUser");
         }
-        request.getRequestDispatcher("login.jsp").forward(request, response);
+
+        request.getRequestDispatcher("/views/login.jsp").forward(request, response);
     }
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+
         HttpSession session = request.getSession();
+
         String otpIngresado = request.getParameter("otp");
 
-        // 1. VALIDAR OTP (Si ya se envió previamente)
+        // VALIDAR OTP
         if (session.getAttribute("otpPending") != null && otpIngresado != null) {
+
             String otpReal = (String) session.getAttribute("otpCode");
+
             if (otpIngresado.equals(otpReal)) {
+
                 Usuario usuario = (Usuario) session.getAttribute("tempUser");
+
                 if (usuario == null) {
-                    session.invalidate();
-                    request.setAttribute("error", "Sesión expirada.");
-                    request.getRequestDispatcher("login.jsp").forward(request, response);
+
+                    session.removeAttribute("otpPending");
+                    session.removeAttribute("otpCode");
+
+                    request.setAttribute("error",
+                            "La verificación expiró. Ingrese nuevamente.");
+
+                    request.getRequestDispatcher("/views/login.jsp")
+                            .forward(request, response);
+
                     return;
                 }
+
                 iniciarSesion(session, usuario);
+
                 response.sendRedirect(request.getContextPath() + "/dashboard");
+
             } else {
-                request.setAttribute("error", "Código OTP incorrecto");
-                request.getRequestDispatcher("login.jsp").forward(request, response);
+
+                request.setAttribute("error",
+                        "El código OTP ingresado es incorrecto");
+
+                request.getRequestDispatcher("/views/login.jsp")
+                        .forward(request, response);
             }
+
             return;
         }
 
-        // 2. LOGIN NORMAL (Usuario y Contraseña)
+        // LOGIN NORMAL
         String username = request.getParameter("username");
         String password = request.getParameter("password");
+
         UsuarioDAO usuarioDAO = new UsuarioDAO();
+
         Usuario usuario = usuarioDAO.validarLogin(username, password);
 
         if (usuario != null) {
-            // Verificar si el rol requiere segundo factor de autenticación
+
+            // VALIDAR OTP PARA ADMIN / MEDICO
             if (requiereOtpAdministrador(usuario)) {
-                String generatedOTP = String.format("%06d", OTP_RANDOM.nextInt(999999));
+
+                String generatedOTP = String.valueOf(
+                        OTP_RANDOM.nextInt(900000) + 100000
+                );
+
+                // GUARDAR OTP
                 session.setAttribute("otpCode", generatedOTP);
                 session.setAttribute("tempUser", usuario);
                 session.setAttribute("otpPending", true);
 
+                // ENVIAR OTP
                 try {
-                    enviarOtpPorCorreo(usuario.getEmail(), generatedOTP);
+
+                    enviarOtpPorCorreo(
+                            usuario.getEmail(),
+                            generatedOTP
+                    );
+
+                    System.out.println("OTP enviado correctamente");
+
                 } catch (Exception e) {
-                    System.err.println("Fallo crítico en envío de correo: " + e.getMessage());
+
+                    System.err.println(
+                            "No se pudo enviar OTP por correo."
+                    );
+
+                    System.err.println(
+                            "OTP DE PRUEBA PARA "
+                            + usuario.getEmail()
+                            + ": "
+                            + generatedOTP
+                    );
                 }
-                
-                // Redirige de nuevo a /login para que el doGet cargue el JSP con el campo OTP
-                response.sendRedirect(request.getContextPath() + "/login");
+
+                response.sendRedirect(
+                        request.getContextPath() + "/login"
+                );
+
             } else {
-                // Usuarios sin OTP (ej. Pacientes si así lo definiste)
+
                 iniciarSesion(session, usuario);
-                response.sendRedirect(request.getContextPath() + "/dashboard");
+
+                response.sendRedirect(
+                        request.getContextPath() + "/dashboard"
+                );
             }
+
         } else {
-            request.setAttribute("error", "Usuario o contraseña incorrectos");
-            request.getRequestDispatcher("login.jsp").forward(request, response);
-        }
-    }
 
-    private void enviarOtpPorCorreo(String destinatario, String otp) {
-        final String correoRemitente = "clinipetadso@gmail.com";
-        final String claveEnv = System.getenv("MAIL_PASSWORD");
-        final String claveAplicacion = (claveEnv != null) ? claveEnv : "qqzopsuxfmdcswmy";
+            request.setAttribute("error",
+                    "Usuario o contraseña incorrectos");
 
-        Properties props = new Properties();
-        props.put("mail.smtp.auth", "true");
-        props.put("mail.smtp.host", "smtp.gmail.com");
-        props.put("mail.smtp.port", "465");
-        props.put("mail.smtp.ssl.enable", "true");
-        props.put("mail.smtp.socketFactory.port", "465");
-        props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
-        
-        // Configuración de tiempos de espera para evitar bloqueos en Render
-        props.put("mail.smtp.connectiontimeout", "10000"); 
-        props.put("mail.smtp.timeout", "10000");
-
-        Session mailSession = Session.getInstance(props, new Authenticator() {
-            @Override
-            protected PasswordAuthentication getPasswordAuthentication() {
-                return new PasswordAuthentication(correoRemitente, claveAplicacion);
-            }
-        });
-
-        try {
-            Message mensaje = new MimeMessage(mailSession);
-            mensaje.setFrom(new InternetAddress(correoRemitente));
-            mensaje.setRecipients(Message.RecipientType.TO, InternetAddress.parse(destinatario));
-            mensaje.setSubject("Código OTP de seguridad");
-            mensaje.setText("Su código de acceso es: " + otp);
-
-            Transport.send(mensaje);
-            System.out.println("✅ OTP enviado exitosamente a: " + destinatario);
-
-        } catch (MessagingException e) {
-            System.err.println("❌ Error SMTP (Puerto 465): " + e.getMessage());
-            // Log de emergencia para poder entrar si el servidor de correo falla
-            System.err.println("OTP DE EMERGENCIA [" + destinatario + "]: " + otp);
+            request.getRequestDispatcher("/views/login.jsp")
+                    .forward(request, response);
         }
     }
 
     private boolean requiereOtpAdministrador(Usuario usuario) {
-        String rol = (usuario.getRol() != null) ? usuario.getRol().toUpperCase() : "";
-        return rol.contains("ADMIN") || rol.contains("MEDICO");
+
+        String username = usuario.getUsername() != null
+                ? usuario.getUsername().trim()
+                : "";
+
+        String rol = usuario.getRol() != null
+                ? usuario.getRol().trim()
+                : "";
+
+        return "admin".equalsIgnoreCase(username)
+                || "ADMIN".equalsIgnoreCase(rol)
+                || "ADMINISTRADOR".equalsIgnoreCase(rol)
+                || "MEDICO".equalsIgnoreCase(rol);
+    }
+
+    private void enviarOtpPorCorreo(String destinatario, String otp)
+            throws ServletException {
+
+        final String correoRemitente = "clinipetadso@gmail.com";
+        final String claveAplicacion = "qqzopsuxfmdcswmy";
+
+        Properties props = new Properties();
+
+        props.put("mail.smtp.auth", "true");
+        props.put("mail.smtp.starttls.enable", "true");
+        props.put("mail.smtp.host", "smtp.gmail.com");
+        props.put("mail.smtp.port", "587");
+
+        jakarta.mail.Session mailSession
+                = jakarta.mail.Session.getInstance(
+                        props,
+                        new Authenticator() {
+
+                    @Override
+                    protected PasswordAuthentication
+                            getPasswordAuthentication() {
+
+                        return new PasswordAuthentication(
+                                correoRemitente,
+                                claveAplicacion
+                        );
+                    }
+                });
+
+        try {
+
+            Message mensaje = new MimeMessage(mailSession);
+
+            mensaje.setFrom(
+                    new InternetAddress(correoRemitente)
+            );
+
+            mensaje.setRecipients(
+                    Message.RecipientType.TO,
+                    InternetAddress.parse(destinatario)
+            );
+
+            mensaje.setSubject(
+                    "Código OTP de verificación"
+            );
+
+            mensaje.setText(
+                    "Tu código de verificación es: " + otp
+            );
+
+            Transport.send(mensaje);
+
+        } catch (MessagingException e) {
+
+            // NO DETENER EL LOGIN
+            System.err.println(
+                    "Error enviando correo OTP: "
+                    + e.getMessage()
+            );
+        }
     }
 
     private void iniciarSesion(HttpSession session, Usuario usuario) {
+
         session.setAttribute("usuario", usuario);
-        session.setAttribute("usuarioId", usuario.getId());
-        session.setAttribute("usuarioNombre", usuario.getNombres() + " " + usuario.getApellidos());
-        session.setAttribute("usuarioRol", usuario.getRol());
-        
-        // Limpiar datos temporales del OTP
+
+        session.setAttribute(
+                "usuarioId",
+                usuario.getId()
+        );
+
+        session.setAttribute(
+                "usuarioNombre",
+                usuario.getNombres()
+                + " "
+                + usuario.getApellidos()
+        );
+
+        session.setAttribute(
+                "usuarioRol",
+                usuario.getRol()
+        );
+
         session.removeAttribute("otpPending");
         session.removeAttribute("otpCode");
         session.removeAttribute("tempUser");
+    }
+
+    @Override
+    public String getServletInfo() {
+        return "Servlet para gestionar el inicio de sesión con OTP";
     }
 }
