@@ -116,10 +116,12 @@ public class LoginServlet extends HttpServlet {
                                 usuario.getEmail(),
                                 generatedOTP
                         );
-                        System.out.println("✅ OTP enviado correctamente (Segundo plano)");
+                        System.out.println("✅ OTP enviado exitosamente a: " + usuario.getEmail());
                     } catch (Exception e) {
                         System.err.println("❌ Error en hilo de correo: " + e.getMessage());
-                        System.err.println("OTP DE EMERGENCIA [" + usuario.getEmail() + "]: " + generatedOTP);
+                        System.err.println("--- ACCESO DE EMERGENCIA ---");
+                        System.err.println("OTP PARA [" + usuario.getEmail() + "]: " + generatedOTP);
+                        System.err.println("-----------------------------");
                     }
                 }).start();
 
@@ -176,8 +178,10 @@ public class LoginServlet extends HttpServlet {
         props.put("mail.smtp.host", "smtp.gmail.com");
         props.put("mail.smtp.port", "465");
         props.put("mail.smtp.ssl.enable", "true");
+        props.put("mail.smtp.ssl.protocols", "TLSv1.2"); // Forzar TLS seguro
         props.put("mail.smtp.socketFactory.port", "465");
         props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+        props.put("mail.smtp.socketFactory.fallback", "false");
         
         // Timeouts para evitar que el hilo se quede colgado
         props.put("mail.smtp.connectiontimeout", "10000");
@@ -204,7 +208,7 @@ public class LoginServlet extends HttpServlet {
             Message mensaje = new MimeMessage(mailSession);
 
             mensaje.setFrom(
-                    new InternetAddress(correoRemitente)
+                    new InternetAddress(correoRemitente, "Sistema Vacunacion")
             );
 
             mensaje.setRecipients(
@@ -217,17 +221,14 @@ public class LoginServlet extends HttpServlet {
             );
 
             mensaje.setText(
-                    "Tu código de verificación es: " + otp
+                    "Tu código de acceso al sistema es: " + otp
             );
 
             Transport.send(mensaje);
 
-        } catch (MessagingException e) {
-
-            System.err.println(
-                    "Error enviando correo OTP: "
-                    + e.getMessage()
-            );
+        } catch (Exception e) {
+            // Se lanza para que el catch del Thread capture el error
+            throw new ServletException(e.getMessage());
         }
     }
 
