@@ -30,8 +30,7 @@
                         <th>Día</th>
                         <th>Inicio</th>
                         <th>Fin</th>
-                        <th>Médico</th>
-                        <th>Especialidad</th>
+                        <th>ID Médico</th>
                         <th>Estado</th>
                         <th>Acciones</th>
                     </tr>
@@ -44,8 +43,7 @@
                             <td>${horario.diaSemana}</td>
                             <td>${horario.horaInicio}</td>
                             <td>${horario.horaFin}</td>
-                            <td>${horario.medico}</td>
-                            <td>${horario.especialidad}</td>
+                            <td>${horario.idUsuario}</td>
 
                             <td>
                                 <span class="badge ${horario.estado == 'DISPONIBLE' ? 'bg-success' : horario.estado == 'OCUPADO' ? 'bg-warning' : 'bg-secondary'}">
@@ -85,7 +83,7 @@
 
                     <c:if test="${empty horarios}">
                         <tr>
-                            <td colspan="8" class="text-center text-muted">
+                            <td colspan="7" class="text-center text-muted">
                                 No hay horarios registrados.
                             </td>
                         </tr>
@@ -103,20 +101,16 @@
                 <h5 class="modal-title">
                     <i class="fas fa-trash"></i> Confirmar eliminación
                 </h5>
-
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-
             <div class="modal-body">
                 <p>¿Desea eliminar el horario <strong id="nombreHorario"></strong>?</p>
                 <p class="text-danger">Esta acción no se puede deshacer.</p>
             </div>
-
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                     Cancelar
                 </button>
-
                 <a href="#" id="btnConfirmarEliminar" class="btn btn-danger">
                     Eliminar
                 </a>
