@@ -1,7 +1,7 @@
 package sena.adso.captcha.controller;
 
 import java.io.IOException;
-
+import java.util.List;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,13 +27,10 @@ public class HorarioServlet extends HttpServlet {
         }
 
         switch (accion) {
-
             case "nuevo":
                 request.setAttribute("usuarios", usuarioDAO.obtenerMedicos());
                 request.setAttribute("accion", "nuevo");
-
-                request.getRequestDispatcher("/views/horario_form.jsp")
-                        .forward(request, response);
+                request.getRequestDispatcher("/views/horario_form.jsp").forward(request, response);
                 break;
 
             case "editar":
@@ -53,11 +50,14 @@ public class HorarioServlet extends HttpServlet {
 
     private void listar(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+        
+        // Obtenemos la lista de la base de datos
+        List<Horario> lista = horarioDAO.obtenerTodos();
+        
+        // Pasamos la lista al JSP
+        request.setAttribute("horarios", lista);
 
-        request.setAttribute("horarios", horarioDAO.obtenerTodos());
-
-        request.getRequestDispatcher("/views/horarios.jsp")
-                .forward(request, response);
+        request.getRequestDispatcher("/views/horarios.jsp").forward(request, response);
     }
 
     private void editar(HttpServletRequest request, HttpServletResponse response)
@@ -69,17 +69,14 @@ public class HorarioServlet extends HttpServlet {
         request.setAttribute("usuarios", usuarioDAO.obtenerMedicos());
         request.setAttribute("accion", "editar");
 
-        request.getRequestDispatcher("/views/horario_form.jsp")
-                .forward(request, response);
+        request.getRequestDispatcher("/views/horario_form.jsp").forward(request, response);
     }
 
     private void eliminar(HttpServletRequest request, HttpServletResponse response)
             throws IOException {
 
         int id = Integer.parseInt(request.getParameter("id"));
-
         horarioDAO.eliminar(id);
-
         response.sendRedirect(request.getContextPath() + "/horarios");
     }
 
@@ -88,17 +85,13 @@ public class HorarioServlet extends HttpServlet {
             throws ServletException, IOException {
 
         Horario horario = new Horario();
-
         String id = request.getParameter("id");
 
         if (id != null && !id.trim().isEmpty()) {
             horario.setId(Integer.parseInt(id));
         }
 
-        horario.setIdUsuario(
-                Integer.parseInt(request.getParameter("idUsuario"))
-        );
-
+        horario.setIdUsuario(Integer.parseInt(request.getParameter("idUsuario")));
         horario.setDiaSemana(request.getParameter("diaSemana"));
         horario.setHoraInicio(request.getParameter("horaInicio"));
         horario.setHoraFin(request.getParameter("horaFin"));
@@ -110,6 +103,7 @@ public class HorarioServlet extends HttpServlet {
             horarioDAO.insertar(horario);
         }
 
+        // Importante: Redirigir siempre al listado para refrescar datos
         response.sendRedirect(request.getContextPath() + "/horarios");
     }
 }
