@@ -6,24 +6,29 @@ import java.sql.SQLException;
 
 public class Conexion {
 
-    // Se obtienen de las variables de entorno de Render (PostgreSQL)
-    private static final String HOST = System.getenv().getOrDefault("DB_HOST", "localhost");
-    private static final String PORT = System.getenv().getOrDefault("DB_PORT", "5432"); // Postgres usa 5432
-    private static final String DBNAME = System.getenv().getOrDefault("DB_NAME", "vacunacion_db");
-    
-    // URL dinámica ajustada para PostgreSQL
-    private static final String URL = "jdbc:postgresql://" + HOST + ":" + PORT + "/" + DBNAME;
-
-    private static final String USER = System.getenv().getOrDefault("DB_USER", "postgres"); 
-    private static final String PASS = System.getenv().getOrDefault("DB_PASS", "123");
-
     public static Connection getConnection() throws SQLException {
         try {
-            // CAMBIO: Ahora usamos el driver de PostgreSQL
+            // 1. Intentar obtener la URL completa de Render (la más confiable)
+            String dbUrl = System.getenv("DB_URL"); 
+            String user = System.getenv("DB_USER");
+            String pass = System.getenv("DB_PASS");
+
+            // 2. Si no hay variables (entorno local), usar valores por defecto
+            if (dbUrl == null) {
+                dbUrl = "jdbc:postgresql://localhost:5432/vacunacion_db";
+                user = "postgres";
+                pass = "123";
+            } else {
+                // IMPORTANTE: Render requiere SSL para conexiones externas
+                if (!dbUrl.contains("sslmode")) {
+                    dbUrl += (dbUrl.contains("?") ? "&" : "?") + "sslmode=require";
+                }
+            }
+
             Class.forName("org.postgresql.Driver");
-            return DriverManager.getConnection(URL, USER, PASS);
+            return DriverManager.getConnection(dbUrl, user, pass);
+            
         } catch (ClassNotFoundException ex) {
-            // CAMBIO: Mensaje de error actualizado
             throw new SQLException("Error al cargar el driver de PostgreSQL", ex);
         }
     }
