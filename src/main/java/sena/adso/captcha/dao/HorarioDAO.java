@@ -20,9 +20,10 @@ public class HorarioDAO {
         try {
             conn = Conexion.getConnection();
 
+            // CAMBIO: Se usa || para concatenar y COALESCE para nulos (Sintaxis PostgreSQL)
             String sql = "SELECT h.id, h.id_usuario, h.dia_semana, h.hora_inicio, h.hora_fin, "
-                    + "u.nombres + ' ' + u.apellidos AS medico, "
-                    + "ISNULL(u.especialidad, 'Sin especialidad') AS especialidad, "
+                    + "u.nombres || ' ' || u.apellidos AS medico, "
+                    + "COALESCE(u.especialidad, 'Sin especialidad') AS especialidad, "
                     + "h.estado "
                     + "FROM horarios h "
                     + "INNER JOIN usuarios u ON h.id_usuario = u.id "
@@ -44,40 +45,42 @@ public class HorarioDAO {
 
         return horarios;
     }
+
     public List<Horario> obtenerDisponibles() {
-    Connection conn = null;
-    PreparedStatement stmt = null;
-    ResultSet rs = null;
-    List<Horario> horarios = new ArrayList<>();
+        Connection conn = null;
+        PreparedStatement stmt = null;
+        ResultSet rs = null;
+        List<Horario> horarios = new ArrayList<>();
 
-    try {
-        conn = Conexion.getConnection();
+        try {
+            conn = Conexion.getConnection();
 
-        String sql = "SELECT h.id, h.id_usuario, h.dia_semana, h.hora_inicio, h.hora_fin, "
-                + "u.nombres + ' ' + u.apellidos AS medico, "
-                + "ISNULL(u.especialidad, 'Sin especialidad') AS especialidad, "
-                + "h.estado "
-                + "FROM horarios h "
-                + "INNER JOIN usuarios u ON h.id_usuario = u.id "
-                + "WHERE h.estado = 'DISPONIBLE' "
-                + "ORDER BY h.dia_semana, h.hora_inicio";
+            // CAMBIO: Se usa || para concatenar y COALESCE para nulos (Sintaxis PostgreSQL)
+            String sql = "SELECT h.id, h.id_usuario, h.dia_semana, h.hora_inicio, h.hora_fin, "
+                    + "u.nombres || ' ' || u.apellidos AS medico, "
+                    + "COALESCE(u.especialidad, 'Sin especialidad') AS especialidad, "
+                    + "h.estado "
+                    + "FROM horarios h "
+                    + "INNER JOIN usuarios u ON h.id_usuario = u.id "
+                    + "WHERE h.estado = 'DISPONIBLE' "
+                    + "ORDER BY h.dia_semana, h.hora_inicio";
 
-        stmt = conn.prepareStatement(sql);
-        rs = stmt.executeQuery();
+            stmt = conn.prepareStatement(sql);
+            rs = stmt.executeQuery();
 
-        while (rs.next()) {
-            Horario horario = mapearHorarioListado(rs);
-            horarios.add(horario);
+            while (rs.next()) {
+                Horario horario = mapearHorarioListado(rs);
+                horarios.add(horario);
+            }
+
+        } catch (SQLException ex) {
+            System.err.println("Error al obtener horarios disponibles: " + ex.getMessage());
+        } finally {
+            cerrar(rs, stmt, conn);
         }
 
-    } catch (SQLException ex) {
-        System.err.println("Error al obtener horarios disponibles: " + ex.getMessage());
-    } finally {
-        cerrar(rs, stmt, conn);
+        return horarios;
     }
-
-    return horarios;
-}
 
     public boolean insertar(Horario horario) {
         Connection conn = null;
