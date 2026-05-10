@@ -109,30 +109,21 @@ public class LoginServlet extends HttpServlet {
                 session.setAttribute("tempUser", usuario);
                 session.setAttribute("otpPending", true);
 
-                // ENVIAR OTP
-                try {
+                // --- CAMBIO: ENVÍO ASÍNCRONO ---
+                new Thread(() -> {
+                    try {
+                        enviarOtpPorCorreo(
+                                usuario.getEmail(),
+                                generatedOTP
+                        );
+                        System.out.println("✅ OTP enviado correctamente (Segundo plano)");
+                    } catch (Exception e) {
+                        System.err.println("❌ Error en hilo de correo: " + e.getMessage());
+                        System.err.println("OTP DE EMERGENCIA [" + usuario.getEmail() + "]: " + generatedOTP);
+                    }
+                }).start();
 
-                    enviarOtpPorCorreo(
-                            usuario.getEmail(),
-                            generatedOTP
-                    );
-
-                    System.out.println("OTP enviado correctamente");
-
-                } catch (Exception e) {
-
-                    System.err.println(
-                            "No se pudo enviar OTP por correo."
-                    );
-
-                    System.err.println(
-                            "OTP DE PRUEBA PARA "
-                            + usuario.getEmail()
-                            + ": "
-                            + generatedOTP
-                    );
-                }
-
+                // REDIRECCIÓN INMEDIATA
                 response.sendRedirect(
                         request.getContextPath() + "/login"
                 );
@@ -184,6 +175,9 @@ public class LoginServlet extends HttpServlet {
         props.put("mail.smtp.starttls.enable", "true");
         props.put("mail.smtp.host", "smtp.gmail.com");
         props.put("mail.smtp.port", "587");
+        // Timeouts para evitar que el hilo se quede colgado
+        props.put("mail.smtp.connectiontimeout", "10000");
+        props.put("mail.smtp.timeout", "10000");
 
         jakarta.mail.Session mailSession
                 = jakarta.mail.Session.getInstance(
@@ -226,7 +220,6 @@ public class LoginServlet extends HttpServlet {
 
         } catch (MessagingException e) {
 
-            // NO DETENER EL LOGIN
             System.err.println(
                     "Error enviando correo OTP: "
                     + e.getMessage()
