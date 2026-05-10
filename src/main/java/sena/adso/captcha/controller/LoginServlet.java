@@ -23,7 +23,6 @@ public class LoginServlet extends HttpServlet {
             session.removeAttribute("otpCode");
             session.removeAttribute("tempUser");
         }
-        // Ajusta esta ruta si tu login.jsp está en la raíz de webapp
         request.getRequestDispatcher("login.jsp").forward(request, response);
     }
 
@@ -33,7 +32,7 @@ public class LoginServlet extends HttpServlet {
         HttpSession session = request.getSession();
         String otpIngresado = request.getParameter("otp");
 
-        // 1. VALIDAR OTP
+        // 1. VALIDAR OTP (Si ya se envió previamente)
         if (session.getAttribute("otpPending") != null && otpIngresado != null) {
             String otpReal = (String) session.getAttribute("otpCode");
             if (otpIngresado.equals(otpReal)) {
@@ -53,13 +52,14 @@ public class LoginServlet extends HttpServlet {
             return;
         }
 
-        // 2. LOGIN NORMAL
+        // 2. LOGIN NORMAL (Usuario y Contraseña)
         String username = request.getParameter("username");
         String password = request.getParameter("password");
         UsuarioDAO usuarioDAO = new UsuarioDAO();
         Usuario usuario = usuarioDAO.validarLogin(username, password);
 
         if (usuario != null) {
+            // Verificar si el rol requiere segundo factor de autenticación
             if (requiereOtpAdministrador(usuario)) {
                 String generatedOTP = String.format("%06d", OTP_RANDOM.nextInt(999999));
                 session.setAttribute("otpCode", generatedOTP);
@@ -71,8 +71,11 @@ public class LoginServlet extends HttpServlet {
                 } catch (Exception e) {
                     System.err.println("Fallo crítico en envío de correo: " + e.getMessage());
                 }
+                
+                // Redirige de nuevo a /login para que el doGet cargue el JSP con el campo OTP
                 response.sendRedirect(request.getContextPath() + "/login");
             } else {
+                // Usuarios sin OTP (ej. Pacientes si así lo definiste)
                 iniciarSesion(session, usuario);
                 response.sendRedirect(request.getContextPath() + "/dashboard");
             }
@@ -84,19 +87,18 @@ public class LoginServlet extends HttpServlet {
 
     private void enviarOtpPorCorreo(String destinatario, String otp) {
         final String correoRemitente = "clinipetadso@gmail.com";
-        // Intentar leer de variable de entorno primero
         final String claveEnv = System.getenv("MAIL_PASSWORD");
         final String claveAplicacion = (claveEnv != null) ? claveEnv : "qqzopsuxfmdcswmy";
 
         Properties props = new Properties();
         props.put("mail.smtp.auth", "true");
         props.put("mail.smtp.host", "smtp.gmail.com");
-        props.put("mail.smtp.port", "465"); // Puerto SSL
+        props.put("mail.smtp.port", "465");
         props.put("mail.smtp.ssl.enable", "true");
         props.put("mail.smtp.socketFactory.port", "465");
         props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
         
-        // Timeouts cruciales para Render
+        // Configuración de tiempos de espera para evitar bloqueos en Render
         props.put("mail.smtp.connectiontimeout", "10000"); 
         props.put("mail.smtp.timeout", "10000");
 
@@ -119,7 +121,7 @@ public class LoginServlet extends HttpServlet {
 
         } catch (MessagingException e) {
             System.err.println("❌ Error SMTP (Puerto 465): " + e.getMessage());
-            // Log de respaldo en consola para poder entrar en caso de emergencia
+            // Log de emergencia para poder entrar si el servidor de correo falla
             System.err.println("OTP DE EMERGENCIA [" + destinatario + "]: " + otp);
         }
     }
@@ -134,6 +136,8 @@ public class LoginServlet extends HttpServlet {
         session.setAttribute("usuarioId", usuario.getId());
         session.setAttribute("usuarioNombre", usuario.getNombres() + " " + usuario.getApellidos());
         session.setAttribute("usuarioRol", usuario.getRol());
+        
+        // Limpiar datos temporales del OTP
         session.removeAttribute("otpPending");
         session.removeAttribute("otpCode");
         session.removeAttribute("tempUser");
