@@ -20,7 +20,6 @@ public class HorarioDAO {
         try {
             conn = Conexion.getConnection();
 
-            // CAMBIO: Se usa || para concatenar y COALESCE para nulos (Sintaxis PostgreSQL)
             String sql = "SELECT h.id, h.id_usuario, h.dia_semana, h.hora_inicio, h.hora_fin, "
                     + "u.nombres || ' ' || u.apellidos AS medico, "
                     + "COALESCE(u.especialidad, 'Sin especialidad') AS especialidad, "
@@ -55,7 +54,6 @@ public class HorarioDAO {
         try {
             conn = Conexion.getConnection();
 
-            // CAMBIO: Se usa || para concatenar y COALESCE para nulos (Sintaxis PostgreSQL)
             String sql = "SELECT h.id, h.id_usuario, h.dia_semana, h.hora_inicio, h.hora_fin, "
                     + "u.nombres || ' ' || u.apellidos AS medico, "
                     + "COALESCE(u.especialidad, 'Sin especialidad') AS especialidad, "
@@ -90,9 +88,10 @@ public class HorarioDAO {
         try {
             conn = Conexion.getConnection();
 
+            // CAMBIO: Se agrega ::time para convertir el String de Java al tipo TIME de PostgreSQL
             String sql = "INSERT INTO horarios "
                     + "(id_usuario, dia_semana, hora_inicio, hora_fin, estado) "
-                    + "VALUES (?, ?, ?, ?, ?)";
+                    + "VALUES (?, ?, ?::time, ?::time, ?)";
 
             stmt = conn.prepareStatement(sql);
             stmt.setInt(1, horario.getIdUsuario());
@@ -120,8 +119,9 @@ public class HorarioDAO {
         try {
             conn = Conexion.getConnection();
 
+            // CAMBIO: Se agrega ::time para convertir el String de Java al tipo TIME de PostgreSQL
             String sql = "UPDATE horarios SET "
-                    + "id_usuario=?, dia_semana=?, hora_inicio=?, hora_fin=?, estado=? "
+                    + "id_usuario=?, dia_semana=?, hora_inicio=?::time, hora_fin=?::time, estado=? "
                     + "WHERE id=?";
 
             stmt = conn.prepareStatement(sql);
