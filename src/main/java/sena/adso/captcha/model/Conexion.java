@@ -7,29 +7,33 @@ import java.sql.SQLException;
 public class Conexion {
 
     public static Connection getConnection() throws SQLException {
-        try {
-            // 1. Intentar obtener la URL completa de Render (la más confiable)
-            String dbUrl = System.getenv("DB_URL"); 
-            String user = System.getenv("DB_USER");
-            String pass = System.getenv("DB_PASSWORD");
+        // Render suele usar DATABASE_URL por defecto
+        String dbUrl = System.getenv("DB_URL"); 
+        String user = System.getenv("DB_USER");
+        String pass = System.getenv("DB_PASSWORD");
 
-            // 2. Si no hay variables (entorno local), usar valores por defecto
-            if (dbUrl == null) {
-                dbUrl = "jdbc:postgresql://localhost:5432/vacunacion_db";
-                user = "postgres";
-                pass = "123";
-            } else {
-                // IMPORTANTE: Render requiere SSL para conexiones externas
-                if (!dbUrl.contains("sslmode")) {
-                    dbUrl += (dbUrl.contains("?") ? "&" : "?") + "sslmode=require";
-                }
+        // Si dbUrl es nulo, intentamos con DATABASE_URL (estándar de Render)
+        if (dbUrl == null) {
+            dbUrl = System.getenv("DATABASE_URL");
+        }
+
+        if (dbUrl == null) {
+            // Valores para tu entorno local
+            dbUrl = "jdbc:postgresql://localhost:5432/vacunacion_db";
+            user = "postgres";
+            pass = "123";
+        } else {
+            // Forzar SSL para Render si no viene en la cadena
+            if (!dbUrl.contains("sslmode")) {
+                dbUrl += (dbUrl.contains("?") ? "&" : "?") + "sslmode=require";
             }
+        }
 
+        try {
             Class.forName("org.postgresql.Driver");
             return DriverManager.getConnection(dbUrl, user, pass);
-            
         } catch (ClassNotFoundException ex) {
-            throw new SQLException("Error al cargar el driver de PostgreSQL", ex);
+            throw new SQLException("Driver PostgreSQL no encontrado", ex);
         }
     }
 
@@ -39,7 +43,7 @@ public class Conexion {
                 connection.close();
             }
         } catch (SQLException ex) {
-            System.err.println("Error al cerrar la conexión: " + ex.getMessage());
+            System.err.println("Error al cerrar conexión: " + ex.getMessage());
         }
     }
 }
