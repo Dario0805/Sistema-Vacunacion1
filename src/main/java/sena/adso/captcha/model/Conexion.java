@@ -11,7 +11,7 @@ public class Conexion {
             // 1. Intentar obtener la URL completa de Render (la más confiable)
             String dbUrl = System.getenv("DB_URL"); 
             String user = System.getenv("DB_USER");
-            String pass = System.getenv("DB_PASS");
+            String pass = System.getenv("DB_PASSWORD");
 
             // 2. Si no hay variables (entorno local), usar valores por defecto
             if (dbUrl == null) {
